@@ -163,8 +163,8 @@ for i in range(5):
     club_name = clubs[i]['club_name']
     ID = users[i]['ID']
     sql_runner_Club.add_new_crew(connection, ID, club_name)
-    sql_runner_Club.change_rule(connection, ID, club_name, "임원진")
-    sql_runner_Club.change_rule(connection, ID, club_name, "회장", attribute="position")
+    sql_runner_Club.change_position(connection, ID, club_name, "임원진")
+    sql_runner_Club.change_position(connection, ID, club_name, "회장", attribute="position")
 
 # 동아리 초대 전송
 sql_runner_Club.send_invitation(connection, "빛누리", "test2")
