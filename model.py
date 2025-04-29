@@ -440,7 +440,7 @@ class Club(SQL_runner):
         return flag
 
 
-    def get_crew_list(self, connection, club_name): # 동아리 회원 정보 조회
+    def get_crew_list(self, connection, club_name): # 동아리 리스트 조회
         sql = '''
             select * from Crews
             where
@@ -456,6 +456,32 @@ class Club(SQL_runner):
             print(f"Error at sql_runner.Club.get_crew_list : {e}")
             raise
         
+        return results
+
+    def get_crew_info(self, connection, club_name):
+        sql = '''
+            SELECT 
+                name AS 이름, 
+                student_id AS 학번, 
+                college AS 단과대, 
+                major AS 전공, 
+                grade AS 학년, 
+                phone_number AS 전화번호,
+                e_mail AS 이메일
+            FROM 
+                Users NATURAL JOIN Crews
+            WHERE
+                club_name=%s
+        '''
+
+        results = None
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(sql, (club_name, ))
+                results = cursor.fetchall()
+        except pymysql.MySQLError as e:
+            print(f"Error at the sql_runner.Club.get_crew_list : {e}")
+            results = 0
         return results
 
 

@@ -1,5 +1,7 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, send_file
+import io
 import pandas as pd
+from urllib.parse import quote
 
 from model import sql_runner, sql_runner_Club
 
@@ -43,6 +45,52 @@ def get_crew_list():
         "results" : results,
         "status" : status
     })
+
+
+
+# 부원 명단 추출
+@Crew_Bp.route("/crews/get_csv", methods=["POST"])
+def get_crew_csv():
+    data = request.json
+    ID = data['ID']
+    club_name = data['club_name']
+    
+    connection = sql_runner.get_db_connection()
+
+    # 권한 확인
+    rule = sql_runner_Club.check_rule(connection, ID, club_name)
+    if rule is None or rule['rule'] != "임원진":
+        connection.close()
+        return jsonify({
+            "message": "권한이 없습니다",
+            "status": 0
+        })
+
+    # 부원 정보 조회
+    results = sql_runner_Club.get_crew_info(connection, club_name)
+    connection.close()
+
+    if results == 0:
+        return jsonify({
+            "message": "조회 도중 오류가 발생했습니다",
+            "status": 0
+        })
+
+    df = pd.DataFrame(results)
+    csv_buffer = io.StringIO()
+    df.to_csv(csv_buffer, index=False, encoding='utf-8-sig')  # Excel용 한글 깨짐 방지
+    csv_buffer.seek(0)
+    # postman으로 파일을 전달받으면 한글 파일명 디코딩이 안되는 문제 발생
+    # 브라우저 상에서 다운로드 해서 한글명 제대로 나오는지 확인 필요
+    file_name = quote(f"{club_name}_회원명단.csv")
+
+    return send_file(
+        io.BytesIO(csv_buffer.getvalue().encode('utf-8-sig')),
+        mimetype='text/csv',
+        as_attachment=True,
+        download_name=file_name
+    )
+
 
 
 # 임원진만 가입권유 전송가능
@@ -386,8 +434,3 @@ def fee_publish_cancel():
         "message" : message,
         "status" : status
     })
-
-
-
-# 부원 명단 추출
-
