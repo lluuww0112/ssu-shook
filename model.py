@@ -320,6 +320,55 @@ class User(SQL_runner):
             flag = 0
         return flag 
 
+
+    def get_club(self, connection, club_name): # 동아리 정보 조회(전체 or 특정)
+        sql = None
+        if club_name == None:
+            sql = '''
+                SELECT 
+                    club_name,
+                    category,
+                    rating,
+                    activity,
+                    score 
+                FROM Clubs
+            '''
+        else:
+            sql = f'''
+                SELECT * FROM Clubs
+                WHERE 
+                    club_name="{club_name}"
+
+            '''
+
+        results = None
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(sql)
+                results = cursor.fetchall()
+        except pymysql.MySQLError as e:
+            print(f"Error at the sql_runner.User.get_club : {e}")
+            results = 0
+        
+        return results
+
+    
+    def get_club_ranking(self, connection): # 동아리 랭킹 조회
+        sql = '''
+            SELECT * FROM Ranking
+        '''
+        
+        results = None
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(sql)
+                results = cursor.fetchall()
+        except pymysql.MySQLError as e:
+            print(f"Error at the sql_runner.User.get_club_ranking : {e}")
+            results = 0
+
+        return results
+
 # ================================================================================================================================================================================================================================================
 
 
@@ -341,41 +390,6 @@ class Club(SQL_runner):
             flag = 0
         finally: 
             return flag
-
-
-    def get_club(self, connection, club_name): # Clubs 테이블에서 입력된 club_name에 대한 동아리 정보를 가져옴
-        sql = '''
-            select * from Clubs
-            where
-                club_name=%s
-        '''
-        result = None
-        try:
-            with connection.cursor() as cursor:
-                cursor.execute(sql, (club_name, ))
-                result = cursor.fetchone()
-        except pymysql.MySQLError as e:
-            print(f"Error at sql_runner.Club.get_club : {e}")
-        finally:
-            return result
-        
-
-    def get_clubs(self, connection): # Clubs 테이블의 동아리 리스트를 score순으로 불러옴
-        sql = '''
-            SELECT club_name, category, banner_path, score
-            FROM Clubs
-            ORDER BY 
-                score DESC
-        '''
-
-        results = None
-        try:
-            with connection.cursor() as cursor:
-                cursor.execute(sql)
-                results = cursor.fetchall()
-        except pymysql.MySQLError as e:
-            print(f'Error at sql_runner.Club.get_clubs : {e}')
-        return results
 
 
     def add_new_crew(self, connection, ID, club_name): # Crews에 행 추가

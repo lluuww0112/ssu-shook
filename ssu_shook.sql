@@ -461,3 +461,127 @@ BEGIN
 END//
 
 DELIMITER ;
+
+-- Applicants 테이블에 대한 트리거 추가
+DELIMITER //
+
+CREATE TRIGGER update_union_activities_applicants_after_insert
+AFTER INSERT ON Applicants
+FOR EACH ROW
+BEGIN
+    UPDATE Union_activities
+    SET applicants_club = (
+        SELECT COUNT(*)
+        FROM Applicants
+        WHERE post_ID = NEW.post_ID
+    )
+    WHERE post_ID = NEW.post_ID;
+END//
+
+CREATE TRIGGER update_union_activities_applicants_after_delete
+AFTER DELETE ON Applicants
+FOR EACH ROW
+BEGIN
+    UPDATE Union_activities
+    SET applicants_club = (
+        SELECT COUNT(*)
+        FROM Applicants
+        WHERE post_ID = OLD.post_ID
+    )
+    WHERE post_ID = OLD.post_ID;
+END//
+
+CREATE TRIGGER update_recruitings_applicants_after_insert
+AFTER INSERT ON Applicants
+FOR EACH ROW
+BEGIN
+    UPDATE Recruitings
+    SET applicants = (
+        SELECT COUNT(*)
+        FROM Applicants
+        WHERE post_ID = NEW.post_ID
+    )
+    WHERE post_ID = NEW.post_ID;
+END//
+
+CREATE TRIGGER update_recruitings_applicants_after_delete
+AFTER DELETE ON Applicants
+FOR EACH ROW
+BEGIN
+    UPDATE Recruitings
+    SET applicants = (
+        SELECT COUNT(*)
+        FROM Applicants
+        WHERE post_ID = OLD.post_ID
+    )
+    WHERE post_ID = OLD.post_ID;
+END//
+
+DELIMITER ;
+
+-- Clubs 테이블의 score 업데이트를 위한 트리거 수정
+DELIMITER //
+
+CREATE TRIGGER update_club_score
+AFTER UPDATE ON Clubs
+FOR EACH ROW
+BEGIN
+    IF NEW.rating != OLD.rating OR NEW.activity != OLD.activity THEN
+        UPDATE Clubs
+        SET score = (NEW.rating * 15) + (LOG(NEW.activity + 1) * 10)
+        WHERE club_name = NEW.club_name;
+    END IF;
+END//
+
+DELIMITER ;
+
+-- Club_Activities 테이블에 대한 트리거 수정
+DELIMITER //
+
+CREATE TRIGGER update_club_activity_after_insert
+AFTER INSERT ON Club_Activities
+FOR EACH ROW
+BEGIN
+    UPDATE Clubs c
+    SET activity = (
+        SELECT COUNT(*)
+        FROM Club_Activities ca
+        JOIN Posts p ON ca.post_ID = p.post_ID
+        WHERE p.club_name = c.club_name
+    )
+    WHERE club_name = (
+        SELECT club_name
+        FROM Posts
+        WHERE post_ID = NEW.post_ID
+    );
+END//
+
+CREATE TRIGGER update_club_activity_after_delete
+AFTER DELETE ON Club_Activities
+FOR EACH ROW
+BEGIN
+    UPDATE Clubs c
+    SET activity = (
+        SELECT COUNT(*)
+        FROM Club_Activities ca
+        JOIN Posts p ON ca.post_ID = p.post_ID
+        WHERE p.club_name = c.club_name
+    )
+    WHERE club_name = (
+        SELECT club_name
+        FROM Posts
+        WHERE post_ID = OLD.post_ID
+    );
+END//
+
+DELIMITER ;
+
+-- Ranking 뷰 수정
+CREATE OR REPLACE VIEW Ranking AS
+SELECT 
+    club_name,
+    RANK() OVER (ORDER BY score DESC) as ranking
+FROM 
+    Clubs
+ORDER BY 
+    score DESC;

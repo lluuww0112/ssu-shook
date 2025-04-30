@@ -276,8 +276,52 @@ def update_review():
     })
 
 
-# 동아리 랭킹 점수 제약성 추가하기
+# 동아리 정보 조회
+@User_BP.route("/get_club", methods=["POST"])
+def get_club_info():
+    club_name = request.json["club_name"]
+
+    connection = sql_runner.get_db_connection()
+    results = None
+    
+
+    try:
+        results = sql_runner_User.get_club(connection, club_name)
+        connection.close()
+        return jsonify({
+            "results" : results,
+            "status" : 1
+        })
+    except:
+        connection.close()
+        return jsonify({
+            "message" : "동아리 정보를 조회하는 도중 오류가 발생했습니다",
+            "status" : 0
+        })
 
 
+@User_BP.route("/get_ranking")
+def get_rankinf():
+    connection = sql_runner.get_db_connection()
+    message = None
+    status = None
 
-# 지원자 수 카운트 제약성 추가 필요
+    results = sql_runner_User.get_club_ranking(connection)
+    if results == 0:
+        message = "랭킹 정보를 조회하는 도중 오류가 발생했습니다"
+        status = 0
+    elif results == ():
+        message = "동아리가 존재하지 않아 랭킹 정보 또한 존재하지 않습니다"
+        status = 1
+    else:
+        message = "랭킹조회 성공"
+        status = 1
+    
+    return jsonify({
+        "results" : results,
+        "message" : message,
+        "status" : status
+    })
+        
+    
+
