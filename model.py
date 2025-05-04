@@ -151,20 +151,33 @@ class User(SQL_runner):
         return flag
 
     
-    def get_posts(self, connection): # 포스트 테이블에서만 조회 
+    def get_posts(self, connection, club_name=None, post_type=None): # 포스트 테이블에서만 조회 
         sql = '''
-            select * from Posts;
+            SELECT * FROM Posts
+            WHERE 1=1
         '''
+        params = []
+
+        if club_name is not None:
+            sql += ' AND club_name=%s'
+            params.append(club_name)
+        
+        if post_type is not None:
+            sql += ' AND post_type=%s'
+            params.append(post_type)
+        
+        sql += ' ORDER BY added DESC'
 
         results = None
         try:
             with connection.cursor() as cursor:
-                cursor.execute(sql)
+                cursor.execute(sql, tuple(params))
                 results = cursor.fetchall()
         except pymysql.MySQLError as e:
-            print(f"Error at sql_runeer.User.get_posts : {e}")
+            print(f"Error at sql_runner.User.get_posts : {e}")
             results = 0
         return results
+
 
 
     def get_entire_post(self, connection, post_ID): # 글 하나 전체를 조회
@@ -369,6 +382,34 @@ class User(SQL_runner):
 
         return results
 
+
+    def get_my_club(self, connection, ID): # 내 동아리 불러오기
+        sql = '''
+            SELECT 
+                club_name,
+                category,
+                rating,
+                activity,
+                score
+            FROM 
+                Clubs NATURAL JOIN Crews
+            WHERE
+                ID=%s
+        '''
+
+        results = None
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(sql, (ID))
+                results = cursor.fetchall()
+        except pymysql.MySQLError as e:
+            print(f"Error at the sql_runner.User.get_my_club : {e}")
+            results = 0
+        
+        return results
+        
+
+
 # ================================================================================================================================================================================================================================================
 
 
@@ -414,7 +455,7 @@ class Club(SQL_runner):
         
         return flag
     
-    def delete_crew(self, connection, ID, club_name): # 크루 삭제(신규 회원을 추가하는 도중 오류가 발생하면 상용)
+    def delete_crew(self, connection, ID, club_name): # 크루 삭제(신규 회원을 추가하는 도중 오류가 발생하면 사용)
         sql = '''
             DELETE FROM Crews
             WHERE
@@ -475,6 +516,8 @@ class Club(SQL_runner):
     def get_crew_info(self, connection, club_name):
         sql = '''
             SELECT 
+                rule AS 직책,
+                position AS 부서,
                 name AS 이름, 
                 student_id AS 학번, 
                 college AS 단과대, 
@@ -483,7 +526,7 @@ class Club(SQL_runner):
                 phone_number AS 전화번호,
                 e_mail AS 이메일
             FROM 
-                Users NATURAL JOIN Crews
+                Crews NATURAL JOIN Users
             WHERE
                 club_name=%s
         '''
@@ -516,7 +559,7 @@ class Club(SQL_runner):
         return results
     
 
-    def change_position(self, connection, ID, club_name, value, attribute="rule"):
+    def change_position(self, connection, ID, club_name, value, attribute="rule"): # 동아리원 직책 변경
         if attribute not in ["rule", "position"]:  # 허용된 컬럼만 사용
             raise ValueError("Invalid attribute")
         
@@ -804,6 +847,29 @@ class Club(SQL_runner):
         
         return flag
 
+    
+    # 납부 테이블 조회 
+    def get_payment_table(self, connection, club_name, publication=None):
+        sql = '''
+            SELECT * FROM Club_fee_table
+            WHERE
+                club_name=%s
+        '''
+
+        if publication != None:
+            sql += f'''
+                AND publication="{publication}"
+            '''
+
+        results = None
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(sql, (club_name, ))
+                results = cursor.fetchall()
+        except pymysql.MySQLError as e:
+            print(f"Error at the sql_runner.Club.get_payment_table : {e}")
+        
+        return results
 
 
 

@@ -26,18 +26,19 @@ def get_crew_list():
 
     rule = sql_runner_Club.check_rule(connection, ID, club_name)
     # 임원진이 아니라면
-    if rule['rule'] == "임원진": # 임원진이라면
-        try:
-            results = sql_runner_Club.get_crew_list(connection, club_name)
-            message = f"{club_name}의 부원 리스트 입니다."
-        except:
-            message =f"동아리원 리스트를 가져오는 도중 오류가 발생했습니다."
-            status = 0
-    else:
+    if rule == None or rule['rule'] == "부원":
         return jsonify({
             "message" : "접근 권한이 없습니다",
             "status" : 0
         })
+    elif rule["rule"] == "임원진":
+        try:
+            results = sql_runner_Club.get_crew_info(connection, club_name)
+            message = f"{club_name}의 부원 리스트 입니다."
+        except:
+            message =f"동아리원 리스트를 가져오는 도중 오류가 발생했습니다."
+            status = 0
+        
         
     connection.close()
     return jsonify({
@@ -434,3 +435,74 @@ def fee_publish_cancel():
         "message" : message,
         "status" : status
     })
+
+
+
+# 회비 납부 테이블 조회 
+@Crew_Bp.route("/fee_publish/table", methods=['POST'])
+def get_publish_table():
+    data = request.json
+
+    ID = data['ID']
+    club_name = data['club_name']
+    publication = data['publication']
+
+    connection = sql_runner.get_db_connection()
+    results = None
+    message = None
+    status = None
+    
+    
+    rule = sql_runner_Club.check_rule(connection, ID, club_name)
+    if rule == None or rule['rule'] == "부원":
+        message = "권한이 없습니다"
+        status = 0
+    elif rule["rule"] == "임원진":
+        try:
+            results = sql_runner_Club.get_payment_table(connection, club_name, publication)
+            message = "회비 납부 테이블 조회 완료"
+            status = 1
+        except:
+            message = "회비 납부 테이블 조회 도중 오류 발생"
+            status = 0
+    
+    return jsonify({
+        "message" : message,
+        "results" : results,
+        "status" : status
+    })
+
+
+
+
+# 권한 확인
+# 동아리 관리자 페이지 접속 전 확인용
+@Crew_Bp.route("/check_rule", methods=['POST'])
+def check_rule():
+    data = request.json
+    ID = data['ID']
+    club_name = data['club_name']
+
+    connection = sql_runner.get_db_connection()
+    message = None
+    status = None
+
+    rule = sql_runner_Club.check_rule(connection, ID, club_name)
+
+    
+    if rule == None:
+        message = "권한이 없습니다"
+        status = 0
+    elif rule.get('rule') == "임원진":
+        message = "권한이 확인되었습니다"
+        status = 1
+
+        
+    return jsonify({
+        "message" : message,
+        "status" : status
+    })
+
+
+
+

@@ -118,11 +118,16 @@ def accept_invitation():
 
 
 # 게시글 목록 조회
-@User_BP.route("/get_posts", methods=["GET"])
+@User_BP.route("/get_posts", methods=["POST"])
 def get_posts():
+    data = request.json
+
+    club_name = data['club_name']
+    post_type = data['post_type']
+
     connection = sql_runner.get_db_connection()
 
-    results = sql_runner_User.get_posts(connection)
+    results = sql_runner_User.get_posts(connection, club_name, post_type)
     connection.close()
     if results == 0:
         return jsonify({
@@ -197,13 +202,24 @@ def post_apply():
 
 
 # 리뷰 추가 
+# 내 동아리가 맞다면 리뷰 추가
 @User_BP.route("/review/add", methods=["POST"])
 def add_review():
     review_contensts = request.json
-    connection = sql_runner.get_db_connection()
 
-    status = sql_runner_User.add_review(connection, review_contensts)
-    message = "리뷰를 추가했습니다" if status else "리뷰 추가를 실패했습니다"
+    ID = review_contensts['ID']
+    club_name = review_contensts["club_name"]
+    connection = sql_runner.get_db_connection()
+    
+    my_clubs = sql_runner_User.get_my_club(connection, ID)
+    # 내 동아리인지 확인
+    if club_name in [my_club['club_name'] for my_club in my_clubs]: #
+        status = sql_runner_User.add_review(connection, review_contensts)
+        message = "리뷰를 추가했습니다" if status else "리뷰 추가를 실패했습니다"
+    else:
+        message = "내 동아리가 아닙니다"
+        status = 0
+
 
     connection.close()
     return jsonify({
@@ -300,6 +316,7 @@ def get_club_info():
         })
 
 
+# 동아리 랭킹 조회
 @User_BP.route("/get_ranking")
 def get_rankinf():
     connection = sql_runner.get_db_connection()
@@ -324,4 +341,26 @@ def get_rankinf():
     })
         
     
+# 내 동아리 불러오기 ???
+@User_BP.route("/get_my_club/<ID>", methods=["GET"])
+def get_my_club(ID):
+    connection = sql_runner.get_db_connection()
 
+    results = sql_runner_User.get_my_club(connection, ID)
+    message = None
+    status = 0
+
+
+    if results == 0:
+        message = "내 동아리를 불러오는 도중 오류가 발생햇습니다"
+        status = 0
+    else:
+        message = "내 동아리 조회 성공"
+        status = 1
+    
+    
+    return jsonify({
+        "message" : message,
+        "results" : results,
+        "status" : status
+    })

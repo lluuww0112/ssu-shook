@@ -421,42 +421,57 @@ ALTER TABLE Applicants
 -- Club_Reviews 테이블에 대한 트리거 추가
 DELIMITER //
 
-CREATE TRIGGER update_club_rating_after_insert
+CREATE TRIGGER update_club_rating_and_score_after_insert
 AFTER INSERT ON Club_Reviews
 FOR EACH ROW
 BEGIN
     UPDATE Clubs
-    SET rating = (
-        SELECT AVG(score)
-        FROM Club_Reviews
-        WHERE club_name = NEW.club_name
-    )
+    SET 
+        rating = (
+            SELECT AVG(score)
+            FROM Club_Reviews
+            WHERE club_name = NEW.club_name
+        ),
+        score = (
+            (SELECT AVG(score) FROM Club_Reviews WHERE club_name = NEW.club_name) * 15 + 
+            (LOG(activity + 1) * 10)
+        )
     WHERE club_name = NEW.club_name;
 END//
 
-CREATE TRIGGER update_club_rating_after_update
+CREATE TRIGGER update_club_rating_and_score_after_update
 AFTER UPDATE ON Club_Reviews
 FOR EACH ROW
 BEGIN
     UPDATE Clubs
-    SET rating = (
-        SELECT AVG(score)
-        FROM Club_Reviews
-        WHERE club_name = NEW.club_name
-    )
+    SET 
+        rating = (
+            SELECT AVG(score)
+            FROM Club_Reviews
+            WHERE club_name = NEW.club_name
+        ),
+        score = (
+            (SELECT AVG(score) FROM Club_Reviews WHERE club_name = NEW.club_name) * 15 + 
+            (LOG(activity + 1) * 10)
+        )
     WHERE club_name = NEW.club_name;
 END//
 
-CREATE TRIGGER update_club_rating_after_delete
+CREATE TRIGGER update_club_rating_and_score_after_delete
 AFTER DELETE ON Club_Reviews
 FOR EACH ROW
 BEGIN
     UPDATE Clubs
-    SET rating = (
-        SELECT COALESCE(AVG(score), 0)
-        FROM Club_Reviews
-        WHERE club_name = OLD.club_name
-    )
+    SET 
+        rating = (
+            SELECT COALESCE(AVG(score), 0)
+            FROM Club_Reviews
+            WHERE club_name = OLD.club_name
+        ),
+        score = (
+            (SELECT COALESCE(AVG(score), 0) FROM Club_Reviews WHERE club_name = OLD.club_name) * 15 + 
+            (LOG(activity + 1) * 10)
+        )
     WHERE club_name = OLD.club_name;
 END//
 
@@ -519,36 +534,30 @@ END//
 
 DELIMITER ;
 
--- Clubs 테이블의 score 업데이트를 위한 트리거 수정
-DELIMITER //
-
-CREATE TRIGGER update_club_score
-AFTER UPDATE ON Clubs
-FOR EACH ROW
-BEGIN
-    IF NEW.rating != OLD.rating OR NEW.activity != OLD.activity THEN
-        UPDATE Clubs
-        SET score = (NEW.rating * 15) + (LOG(NEW.activity + 1) * 10)
-        WHERE club_name = NEW.club_name;
-    END IF;
-END//
-
-DELIMITER ;
-
 -- Club_Activities 테이블에 대한 트리거 수정
 DELIMITER //
 
-CREATE TRIGGER update_club_activity_after_insert
+CREATE TRIGGER update_club_activity_and_score_after_insert
 AFTER INSERT ON Club_Activities
 FOR EACH ROW
 BEGIN
     UPDATE Clubs c
-    SET activity = (
-        SELECT COUNT(*)
-        FROM Club_Activities ca
-        JOIN Posts p ON ca.post_ID = p.post_ID
-        WHERE p.club_name = c.club_name
-    )
+    SET 
+        activity = (
+            SELECT COUNT(*)
+            FROM Club_Activities ca
+            JOIN Posts p ON ca.post_ID = p.post_ID
+            WHERE p.club_name = c.club_name
+        ),
+        score = (
+            (rating * 15) + 
+            (LOG((
+                SELECT COUNT(*) + 1
+                FROM Club_Activities ca
+                JOIN Posts p ON ca.post_ID = p.post_ID
+                WHERE p.club_name = c.club_name
+            )) * 10)
+        )
     WHERE club_name = (
         SELECT club_name
         FROM Posts
@@ -556,17 +565,27 @@ BEGIN
     );
 END//
 
-CREATE TRIGGER update_club_activity_after_delete
+CREATE TRIGGER update_club_activity_and_score_after_delete
 AFTER DELETE ON Club_Activities
 FOR EACH ROW
 BEGIN
     UPDATE Clubs c
-    SET activity = (
-        SELECT COUNT(*)
-        FROM Club_Activities ca
-        JOIN Posts p ON ca.post_ID = p.post_ID
-        WHERE p.club_name = c.club_name
-    )
+    SET 
+        activity = (
+            SELECT COUNT(*)
+            FROM Club_Activities ca
+            JOIN Posts p ON ca.post_ID = p.post_ID
+            WHERE p.club_name = c.club_name
+        ),
+        score = (
+            (rating * 15) + 
+            (LOG((
+                SELECT COUNT(*) + 1
+                FROM Club_Activities ca
+                JOIN Posts p ON ca.post_ID = p.post_ID
+                WHERE p.club_name = c.club_name
+            )) * 10)
+        )
     WHERE club_name = (
         SELECT club_name
         FROM Posts
@@ -577,10 +596,13 @@ END//
 DELIMITER ;
 
 -- Ranking 뷰 수정
-CREATE OR REPLACE VIEW Ranking AS
+CREATE OR REPLACE VIEW Ranking AS 
 SELECT 
     club_name,
-    RANK() OVER (ORDER BY score DESC) as ranking
+    RANK() OVER (ORDER BY score DESC) as ranking,
+    rating,
+    activity,
+    score
 FROM 
     Clubs
 ORDER BY 
