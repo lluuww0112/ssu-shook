@@ -516,6 +516,7 @@ class Club(SQL_runner):
     def get_crew_info(self, connection, club_name):
         sql = '''
             SELECT 
+                ID as 아이디,
                 rule AS 직책,
                 position AS 부서,
                 name AS 이름, 

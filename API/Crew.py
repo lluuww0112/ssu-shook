@@ -420,6 +420,14 @@ def fee_publish_cancel():
     message = None
     status = None
     
+    print("==================================")
+    print(ID)
+    print(club_name)
+    print(IDs)
+    print(publications)
+    print("==================================")
+
+
     rule = sql_runner_Club.check_rule(connection, ID, club_name)
     if rule != None and rule['rule'] == '부원':
         message = "권한이 없습니다"
